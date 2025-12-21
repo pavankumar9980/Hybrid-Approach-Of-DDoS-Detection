@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html><head><title>Attack Details</title>
+<style>body{background:#000;color:#0f0;font-family:monospace;padding:20px}</style>
+</head><body>
+<h1>ATTACK DETAILS & HISTORY</h1>
+<pre id="log" style="background:#111;padding:20px;height:80vh;overflow:auto"></pre>
+<script>
+async function load() {
+  const r = await fetch("http://192.168.1.5:8000/detect", {headers:{"Authorization":"Bearer " + localStorage.token || ""}});
+  const j = await r.json();
+  document.getElementById("log").innerHTML = JSON.stringify(j, null, 2);
+  setTimeout(load, 1000);
+}
+load();
+</script>
+</body></html>

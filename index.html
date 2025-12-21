@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Hybrid DDoS IDS - PRO</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #000; color: #0f0; font-family: monospace; text-align: center; padding: 20px; margin: 0; }
+        h1 { color: cyan; }
+        #type { font-size: 3em; margin: 20px; }
+        button { padding: 12px 25px; background: #111; color: #0f0; border: 2px solid #0f0; font-size: 1.2em; cursor: pointer; margin: 20px; }
+        #packet_list { width: 90%; margin: 30px auto; height: 300px; overflow-y: auto; background: #111; padding: 15px; border: 1px solid #0f0; text-align: left; }
+        .packet-entry { padding: 5px; border-bottom: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <h1>REAL-TIME DDoS ATTACK TYPE DETECTOR</h1>
+    <h2>LIVE ON: <span style="color:lime">http://10.13.247.244:8000</span></h2>
+    <h2 id="type">Waiting for traffic...</h2>
+    <h3>Attacker IP: <span id="ip" style="color:orange">None</span></h3>
+    <h2>Normal: <span id="n">0</span> | Attack: <span id="a" style="color:red">0</span></h2>
+    <button id="download_btn">Download Captured Packets</button>
+    <a href="/download_packets" download style="padding:12px 25px; background:#111; color:#0f0; border:2px solid #0f0; font-size:1.2em; cursor:pointer; margin:20px; text-decoration:none">Download Captured Packets</a>
+    <canvas id="chart" width="1200" height="500"></canvas>
+    <h2>Live Captured Packets</h2>
+    <pre id="packet_list"></pre>
+
+    <script>
+        const API = "http://10.13.247.244:8000";
+        let token = "", normal = 0, attack = 0;
+
+        const chart = new Chart(document.getElementById('chart'), {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'Packets/s', borderColor: 'lime', data: [] },
+                { label: 'SYN/s', borderColor: 'red', data: [] }
+            ]},
+            options: { animation: false, scales: { y: { beginAtZero: true } }}
+        });
+
+        async function login() {
+            const res = await fetch(API + "/login", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({user:"demo",pwd:"demo123"})});
+            token = (await res.json()).token;
+            setInterval(update, 800);
+            setInterval(updatePackets, 1000);
+        }
+
+        async function update() {
+            if (!token) return;
+            try {
+                const j = await (await fetch(API + "/detect", {headers:{"Authorization":"Bearer "+token}})).json();
+                document.getElementById("type").innerHTML = `<b style="color:${j.result==='ALERT: Attack Detected'?'red':'lime'}">${j.attack_type}</b>`;
+                document.getElementById("ip").innerText = j.attacker_ip || "None";
+                if (j.result === "ALERT: Attack Detected") {
+                    attack++;
+                } else if (j.pkt_rate > 5) normal++;
+                
+                const time = new Date().toLocaleTimeString().slice(0,-3);
+                chart.data.labels.push(time);
+                chart.data.datasets[0].data.push(j.pkt_rate || 0);
+                chart.data.datasets[1].data.push(j.syn_rate || 0);
+                if (chart.data.labels.length > 50) { chart.data.labels.shift(); chart.data.datasets[0].data.shift(); chart.data.datasets[1].data.shift(); }
+                chart.update();
+            } catch(e) {}
+        }
+
+        async function updatePackets() {
+            try {
+                const res = await fetch(API + "/packets", {headers:{"Authorization":"Bearer "+token}});
+                const packets = await res.json();
+                const list = document.getElementById('packet_list');
+                list.innerHTML = '';
+                packets.forEach(pkt => {
+                    const div = document.createElement("div");
+                    div.className = "packet-entry";
+                    div.innerHTML = `${pkt.timestamp} → ${pkt.source_ip} → ${pkt.dest_ip} | ${pkt.protocol} | ${pkt.size} bytes | Flags: ${pkt.flags}`;
+                    list.appendChild(div);
+                });
+            } catch(e) {}
+        }
+
+        login();
+    </script>
+</body>
+</html>
+
