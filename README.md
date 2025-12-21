@@ -2,8 +2,7 @@
 
 **Real-Time DDoS Intrusion Detection with Attacker IP Tracking**
 
-**Project by Pavan Kumar (pavankumar9980)**  
-B.Tech Final Year Project - 2025
+**Project by Pavan Kumar **
 
 ## Project Overview
 
