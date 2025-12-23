@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_file
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required
+from flask_jwt_extended import JWTManager, create_access_token
 from flask_cors import CORS
 import joblib
 import pandas as pd
@@ -7,12 +7,11 @@ import threading
 import time
 from scapy.all import sniff, TCP, UDP, ICMP, IP
 from collections import defaultdict
-import csv
 from io import StringIO
 
 app = Flask(__name__)
 CORS(app)
-app.config["JWT_SECRET_KEY"] = "pavan-perfect-2025"
+app.config["JWT_SECRET_KEY"] = "pavan-final-2025"
 jwt = JWTManager(app)
 
 # Load models
@@ -35,7 +34,6 @@ current_stats = {
     "attacker_ip": "None"
 }
 
-# UNLIMITED PACKETS
 captured_packets = []
 
 def calculate_traffic():
@@ -45,6 +43,8 @@ def calculate_traffic():
         pkt_count = len(packets)
         syn = ack = udp = icmp = 0
         src_ips = defaultdict(int)
+
+        captured_packets = captured_packets[-100:]
 
         for p in packets:
             if IP in p:
@@ -111,17 +111,15 @@ def login():
     return jsonify({"msg": "Wrong"}), 401
 
 @app.route('/detect', methods=['GET'])
-@jwt_required()
 def detect():
-    return jsonify(current_stats)
+    return jsonify(current_stats)  # PUBLIC
 
 @app.route('/packets', methods=['GET'])
-@jwt_required()
 def get_packets():
-    return jsonify(captured_packets)
+    return jsonify(captured_packets)  # PUBLIC
 
 @app.route('/download_packets', methods=['GET'])
-def download_packets():  # PUBLIC — EASY DOWNLOAD AS CSV
+def download_packets():
     si = StringIO()
     cw = csv.writer(si)
     cw.writerow(['Timestamp', 'Source IP', 'Destination IP', 'Protocol', 'Size', 'Flags'])
