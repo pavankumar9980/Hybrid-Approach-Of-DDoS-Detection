@@ -1,23 +1,24 @@
-# Python / Virtualenv
+# Ignore virtual environment
 venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-pip-log.txt
-pip-delete-this-directory.txt
+env/
+.venv/
 
-# Models & large files (optional - keep if small)
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Models & large binary files (optional — keep .pkl if small)
 *.pkl
 *.h5
 *.joblib
 
-# Logs & temp
+# Logs & temp files
 *.log
 *.tmp
+*.bak
 
-# OS generated
+# OS junk
 .DS_Store
 Thumbs.db
 
