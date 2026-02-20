@@ -1,5 +1,26 @@
+# Python / Virtualenv
 venv/
 __pycache__/
 *.pyc
-.DS_Store
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Models & large files (optional - keep if small)
+*.pkl
+*.h5
+*.joblib
+
+# Logs & temp
 *.log
+*.tmp
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/

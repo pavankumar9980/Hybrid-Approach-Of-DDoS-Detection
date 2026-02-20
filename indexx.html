@@ -2,15 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>SHIELD SOC | Pro Dashboard</title>
+    <title>SHIELD SOC | Fixed Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --bg: #05080a; --panel: #0f171e; --cyan: #00f2ff; --red: #ff0055; --green: #00ff88; --text: #e6edf3; }
         * { box-sizing: border-box; }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100vh; padding: 10px; }
-        .dashboard-container { display: flex; flex-direction: column; height: 100%; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100vh; }
+        
+        #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #05080a; }
+        .auth-box { background: var(--panel); padding: 30px; border-radius: 10px; border: 1px solid var(--cyan); width: 350px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; }
+
+        #main-dash { display: none; padding: 10px; height: 100vh; flex-direction: column; }
         #status-banner { background: rgba(0, 255, 136, 0.05); border: 2px solid var(--green); padding: 15px; text-align: center; border-radius: 8px; margin-bottom: 10px; position: relative; }
-        #status-banner.alert { background: rgba(255, 0, 85, 0.2); border-color: var(--red); animation: blink 0.8s infinite; }
+        #status-banner.alert { background: rgba(255, 0, 85, 0.2) !important; border-color: var(--red) !important; animation: blink 0.8s infinite; }
+        
         .stat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 10px; }
         .stat-card { background: var(--panel); padding: 10px; border-radius: 5px; border: 1px solid #1b2733; text-align: center; }
         .stat-card .val { font-size: 1.1rem; font-weight: bold; color: var(--cyan); }
@@ -21,20 +27,28 @@
         table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
         th { background: #1b2733; color: var(--cyan); padding: 8px; position: sticky; top: 0; text-align: left; }
         td { padding: 6px 8px; border-bottom: 1px solid #1b2733; }
-        .btn { background: var(--cyan); color: #000; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; text-decoration: none; display: inline-block; }
+        .btn { background: var(--cyan); color: #000; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; text-decoration: none; }
         #block-btn { background: var(--red); color: white; display: none; position: absolute; right: 20px; top: 15px; box-shadow: 0 0 10px var(--red); }
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); }
-        .modal-content { background: var(--panel); margin: 10% auto; padding: 20px; border: 1px solid var(--cyan); width: 60%; border-radius: 10px; }
+        
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
-<div class="dashboard-container">
+<div id="auth-screen">
+    <div class="auth-box">
+        <h2 style="color:var(--cyan)">SHIELD LOGIN</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button class="btn" onclick="login()">LOGIN</button>
+    </div>
+</div>
+
+<div id="main-dash">
     <div id="status-banner">
         <h2 id="main-status" style="margin:0;">SYSTEM READY</h2>
-        <p style="margin:2px;">Status: <span id="atk-label" style="color:var(--green)">Normal</span> | Attacker: <span id="attacker-id">None</span></p>
-        <button id="block-btn" class="btn" onclick="blockAttacker()">TERMINATE THREAT</button>
+        <p style="margin:2px;">Status: <span id="atk-label" style="color:var(--green)">Normal Traffic</span> | Attacker: <span id="attacker-id">None</span></p>
+        <button id="block-btn" class="btn" onclick="blockAttacker()">TERMINATE ATTACKER</button>
     </div>
 
     <div class="stat-grid">
@@ -59,25 +73,34 @@
             <tbody id="p-body"></tbody>
         </table>
     </div>
-    <center style="margin-top:5px"><a href="http://localhost:8000/download" class="btn">DOWNLOAD FORENSIC CSV</a></center>
-</div>
-
-<div id="dpiModal" class="modal">
-    <div class="modal-content">
-        <span style="color:red; float:right; cursor:pointer;" onclick="closeModal()">[CLOSE]</span>
-        <h3 style="color:var(--cyan)">Deep Packet Inspection</h3>
-        <div id="dpi-payload" style="background:#000; padding:10px; font-family:monospace; color:var(--green); word-break:break-all"></div>
-    </div>
+    <center style="margin-top:5px">
+        <a href="http://localhost:8000/download" class="btn" style="background:var(--green)">DOWNLOAD FORENSIC REPORT</a>
+    </center>
 </div>
 
 <script>
-    const cfg = { responsive: true, maintainAspectRatio: false, animation: false };
-    const flow = new Chart(document.getElementById('flowChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Total Flow', borderColor: '#00f2ff', data: [] }] }, options: cfg });
-    const lat = new Chart(document.getElementById('latChart'), { type: 'bar', data: { labels: ['Your IDS', 'Standard'], datasets: [{ label: 'ms', backgroundColor: ['#00ff88', '#ff0055'], data: [0, 480] }] }, options: cfg });
-    const norm = new Chart(document.getElementById('normChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Normal Traffic', borderColor: '#00ff88', data: [] }] }, options: cfg });
-    const atk = new Chart(document.getElementById('atkChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Attack Traffic', borderColor: '#ff0055', data: [] }] }, options: cfg });
+    // Fixed: Login handles the redirect to dashboard correctly
+    async function login() {
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        const res = await fetch('http://localhost:8000/login', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({username: u, password: p})
+        });
+        if(res.ok) { 
+            document.getElementById('auth-screen').style.display='none'; 
+            document.getElementById('main-dash').style.display='flex'; 
+            setInterval(update, 500); 
+        } else alert("Invalid Credentials");
+    }
 
-    let packetCache = [];
+    const cfg = { responsive: true, maintainAspectRatio: false, animation: false };
+    const flow = new Chart(document.getElementById('flowChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Flow', borderColor: '#00f2ff', data: [] }] }, options: cfg });
+    const lat = new Chart(document.getElementById('latChart'), { type: 'bar', data: { labels: ['IDS', 'Legacy'], datasets: [{ label: 'ms', backgroundColor: ['#00ff88', '#ff0055'], data: [0, 480] }] }, options: cfg });
+    const norm = new Chart(document.getElementById('normChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Normal', borderColor: '#00ff88', data: [] }] }, options: cfg });
+    const atk = new Chart(document.getElementById('atkChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Attack', borderColor: '#ff0055', data: [] }] }, options: cfg });
+
     async function update() {
         try {
             const res = await fetch("http://localhost:8000/detect");
@@ -85,7 +108,7 @@
             document.getElementById('main-status').innerText = d.status;
             document.getElementById('atk-label').innerText = d.attack_type;
             document.getElementById('attacker-id').innerText = d.attacker_ip;
-            document.getElementById('conf-val').innerText = d.confidence + "%";
+            document.getElementById('conf-val').innerText = d.confidence + "%"; // AI Confidence Fix
             
             document.getElementById('cap-lat').innerText = d.capture_lat + "ms";
             document.getElementById('ana-lat').innerText = d.analysis_lat + "ms";
@@ -93,46 +116,36 @@
             document.getElementById('pps').innerText = d.pkt_rate;
             document.getElementById('out-pps').innerText = d.outgoing_pps;
 
-            if(d.status === "ATTACK DETECTED") { 
-                document.getElementById('status-banner').classList.add('alert'); 
-                document.getElementById('block-btn').style.display="block"; 
-            } else { 
-                document.getElementById('status-banner').classList.remove('alert'); 
-                document.getElementById('block-btn').style.display="none"; 
-            }
+            const banner = document.getElementById('status-banner');
+            const bBtn = document.getElementById('block-btn');
+            if(d.status === "ATTACK DETECTED") { banner.classList.add('alert'); bBtn.style.display="block"; } 
+            else { banner.classList.remove('alert'); bBtn.style.display="none"; }
 
             const now = new Date().toLocaleTimeString().split(' ')[0];
             [flow, norm, atk].forEach(c => { if(c.data.labels.length > 10) { c.data.labels.shift(); c.data.datasets[0].data.shift(); } });
-            
             flow.data.labels.push(now); flow.data.datasets[0].data.push(d.pkt_rate); flow.update();
             norm.data.labels.push(now); norm.data.datasets[0].data.push(d.normal_pps); norm.update();
             atk.data.labels.push(now); atk.data.datasets[0].data.push(d.attack_pps); atk.update();
             lat.data.datasets[0].data[0] = d.total_lat; lat.update();
 
             const pRes = await fetch("http://localhost:8000/packets");
-            packetCache = await pRes.json();
-            document.getElementById('p-body').innerHTML = packetCache.reverse().slice(0, 10).map((p, i) => 
-                `<tr onclick="openDPI(${i})"><td>${p.timestamp}</td><td>${p.source_ip}</td><td>${p.dest_ip}</td><td>${p.protocol}</td><td>${p.size}</td><td>${p.summary}</td></tr>`
+            const pData = await pRes.json();
+            document.getElementById('p-body').innerHTML = pData.reverse().slice(0,10).map((p) => 
+                `<tr><td>${p.timestamp}</td><td>${p.source_ip}</td><td>${p.dest_ip}</td><td>${p.protocol}</td><td>${p.size}</td><td>${p.summary}</td></tr>`
             ).join('');
         } catch(e) {}
     }
 
-    function openDPI(index) {
-        document.getElementById('dpi-payload').innerText = packetCache[index].payload;
-        document.getElementById('dpiModal').style.display = "block";
-    }
-
     async function blockAttacker() {
         const ip = document.getElementById('attacker-id').innerText;
-        if(confirm("Confirm: Terminate connection from " + ip + "?")) {
-            if(confirm("Final Warning: Block IP Permanently?")) {
-                await fetch("http://localhost:8000/block_ip", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ip: ip})});
-                alert("IP Blacklisted.");
-            }
-        }
+        if(ip === "None") return;
+        const response = await fetch("http://localhost:8000/block_ip", { 
+            method: "POST", 
+            headers: {"Content-Type": "application/json"}, 
+            body: JSON.stringify({ip: ip})
+        });
+        if(response.ok) alert("Actionable Intelligence: IP " + ip + " Blocked.");
     }
-    function closeModal() { document.getElementById('dpiModal').style.display = "none"; }
-    setInterval(update, 500);
 </script>
 </body>
 </html>
